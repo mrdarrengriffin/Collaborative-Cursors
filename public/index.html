@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+
+        var socket = io();
+        var game = {
+            players: {}
+        }
+        socket.on('connect', () => {
+            socket.emit('getUsers')
+        });
+
+        socket.on('users', u => {
+            game.players = u;
+            Object.keys(game.players).forEach(userId => {
+                user = game.players[userId]
+                addCursor(user.id)
+            })
+        })
+
+        socket.on('userJoin', p => {
+            game.players[p.id] = p;
+            addCursor(p.id)
+        });
+
+        function addCursor(id) {
+            $("#app").append('<div class="cursor" id="' + id + '"><img src="/cursor.png"><span>' + id + '</span></div>');
+
+        }
+        function removeCursor(id) {
+            $(".cursor#" + id).remove();
+        }
+        function growCursor(id, amount) {
+            var currentSize = { w: $("#" + id + " img").width(), h: $("#" + id + " img").height() }
+            var currentTop = $("#" + id + " span").css('top');
+            $("#" + id + " img").width(currentSize.w + amount)
+            $("#" + id + " span").css({ "top": currentTop + amount })
+
+        }
+        function shrinkCursor(id, amount) {
+            var currentSize = { w: $("#" + id + " img").width(), h: $("#" + id + " img").height() }
+            $("#" + id + " img").width(currentSize.w - amount)
+            $("#" + id + " span").width(currentSize.w - amount)
+        }
+        function moveCursor(id, x, y) {
+            $("#" + id).css({ left: x, top: y })
+        }
+
+        socket.on('userLeave', p => {
+            delete game.players[p];
+            removeCursor(p);
+        });
+
+        socket.on('move', m => {
+            moveCursor(m.id, m.x, m.y);
+        })
+
+        $("#app").mousemove(e => {
+            socket.emit('move', { x: e.pageX, y: e.pageY });
+            moveCursor(socket.id, e.pageX, e.pageY)
+            console.log(e.pageX + ", " + e.pageY);
+        })
+
+        $("#app").bind('mousewheel', e => {
+            if (e.originalEvent.wheelDelta >= 0) {
+                growCursor(socket.id, 1)
+            } else {
+                shrinkCursor(socket.id, 1)
+            }
+        });
+
+
+    </script>
+</body>
+
+</html>
